@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/phase0-check.sh",
+            "statusMessage": "Checking OpenSpec/beads/graphify prerequisites...",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/preflight-check.sh",
+            "statusMessage": "Checking credentials and MCP server health...",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
