@@ -14,7 +14,7 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/preflight-check.sh",
             "statusMessage": "Checking credentials and MCP server health...",
-            "timeout": 10
+            "timeout": 20
           }
         ]
       }
