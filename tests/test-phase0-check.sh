@@ -6,6 +6,8 @@ HOOK="$SCRIPT_DIR/../plugins/dev-workflow/hooks/phase0-check.sh"
 
 fail() { echo "FAIL: $1"; exit 1; }
 
+trap 'rm -rf "${tmp_empty:-}" "${tmp_full:-}" "${tmp_repo:-}" "${tmp_no_graph:-}"' EXIT
+
 # Case 1: nothing initialized
 tmp_empty=$(mktemp -d)
 output_empty=$(cd "$tmp_empty" && "$HOOK")
@@ -18,7 +20,6 @@ echo "$message_empty" | grep -q "Graphify CLI" || fail "empty case: expected Gra
 echo "$message_empty" | grep -q "OpenSpec not initialized" || fail "empty case: expected OpenSpec not-initialized line"
 echo "$message_empty" | grep -q "Beads not initialized" || fail "empty case: expected Beads not-initialized line"
 echo "$message_empty" | grep -q "Graphify not initialized" || fail "empty case: expected Graphify not-initialized line"
-rm -rf "$tmp_empty"
 
 # Case 2: everything initialized
 tmp_full=$(mktemp -d)
@@ -29,7 +30,6 @@ message_full=$(echo "$output_full" | jq -r '.hookSpecificOutput.additionalContex
 echo "$message_full" | grep -q "OpenSpec initialized" || fail "full case: expected OpenSpec initialized line"
 echo "$message_full" | grep -q "Beads initialized" || fail "full case: expected Beads initialized line"
 echo "$message_full" | grep -q "Graphify initialized" || fail "full case: expected Graphify initialized line"
-rm -rf "$tmp_full"
 
 # Case 3: everything initialized at repo root, hook run from a subdirectory
 tmp_repo=$(mktemp -d)
@@ -44,7 +44,6 @@ echo "$message_subdir" | grep -q "Graphify initialized" || fail "subdir case: ex
 echo "$message_subdir" | grep -q "OpenSpec not initialized" && fail "subdir case: OpenSpec wrongly reported not initialized"
 echo "$message_subdir" | grep -q "Beads not initialized" && fail "subdir case: Beads wrongly reported not initialized"
 echo "$message_subdir" | grep -q "Graphify not initialized" && fail "subdir case: Graphify wrongly reported not initialized"
-rm -rf "$tmp_repo"
 
 # Case 4: graphify-out/ directory exists but graph.json hasn't been generated yet
 tmp_no_graph=$(mktemp -d)
@@ -52,6 +51,5 @@ mkdir -p "$tmp_no_graph/openspec" "$tmp_no_graph/.beads" "$tmp_no_graph/graphify
 output_no_graph=$(cd "$tmp_no_graph" && "$HOOK")
 message_no_graph=$(echo "$output_no_graph" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_no_graph" | grep -q "Graphify not initialized" || fail "no-graph case: expected Graphify not-initialized line when graphify-out/ exists but graph.json doesn't"
-rm -rf "$tmp_no_graph"
 
 echo "All phase0-check tests passed"
