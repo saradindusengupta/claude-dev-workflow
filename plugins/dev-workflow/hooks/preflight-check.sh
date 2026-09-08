@@ -70,7 +70,8 @@ check_mcp_servers() {
   fi
   while IFS= read -r line; do
     if [ -n "$line" ]; then
-      results+=("✓ MCP server configured: ${line} (live connectivity checked by /preflight skill)")
+      local server_name="${line%%: *}"
+      results+=("✓ MCP server configured: ${server_name} (live connectivity checked by /preflight skill)")
     fi
   done <<< "$list"
 }
@@ -87,5 +88,5 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 
-jq -n --arg msg "$message" '{hookSpecificOutput: {message: $msg}}'
+jq -n --arg msg "$message" '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $msg}}'
 exit 0

@@ -27,7 +27,7 @@ curl_200=$(make_fixture "curl-200" 'echo "200"')
 # Case 1: everything broken
 output_broken=$(PREFLIGHT_CACHE_DIR="$(mktemp -d)" PREFLIGHT_GH_CMD="$gh_fail" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_401" \
   GITHUB_PERSONAL_ACCESS_TOKEN="expired-token" GITLAB_TOKEN="" "$HOOK")
-message_broken=$(echo "$output_broken" | jq -r '.hookSpecificOutput.message')
+message_broken=$(echo "$output_broken" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_broken" | grep -q "GitHub CLI not authenticated" || fail "broken case: expected gh not-authenticated line"
 echo "$message_broken" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN rejected" || fail "broken case: expected rejected GitHub token line"
 echo "$message_broken" | grep -q "GITLAB_TOKEN not set" || fail "broken case: expected GITLAB_TOKEN not-set line"
@@ -36,7 +36,7 @@ echo "$message_broken" | grep -q "No MCP servers configured" || fail "broken cas
 # Case 2: everything healthy
 output_healthy=$(PREFLIGHT_CACHE_DIR="$(mktemp -d)" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_servers" PREFLIGHT_CURL_CMD="$curl_200" \
   GITHUB_PERSONAL_ACCESS_TOKEN="good-token" GITLAB_TOKEN="good-token" "$HOOK")
-message_healthy=$(echo "$output_healthy" | jq -r '.hookSpecificOutput.message')
+message_healthy=$(echo "$output_healthy" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_healthy" | grep -q "GitHub CLI authenticated" || fail "healthy case: expected gh authenticated line"
 echo "$message_healthy" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN valid" || fail "healthy case: expected valid GitHub token line"
 echo "$message_healthy" | grep -q "GITLAB_TOKEN valid" || fail "healthy case: expected valid GitLab token line"
@@ -52,7 +52,7 @@ PREFLIGHT_CACHE_DIR="$cache_dir" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD=
 
 output_cached=$(PREFLIGHT_CACHE_DIR="$cache_dir" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_second" \
   GITHUB_PERSONAL_ACCESS_TOKEN="good-token" GITLAB_TOKEN="" "$HOOK")
-message_cached=$(echo "$output_cached" | jq -r '.hookSpecificOutput.message')
+message_cached=$(echo "$output_cached" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_cached" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN valid" || fail "cache case: expected cached valid result to be reused instead of re-querying curl"
 
 echo "All preflight-check tests passed"
