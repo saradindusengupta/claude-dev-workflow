@@ -8,6 +8,11 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/phase0-check.sh",
             "statusMessage": "Checking OpenSpec/beads/graphify prerequisites..."
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/preflight-check.sh",
+            "statusMessage": "Checking credentials and MCP server health..."
           }
         ]
       }
