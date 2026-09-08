@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/phase0-check.sh",
+            "statusMessage": "Checking OpenSpec/beads/graphify prerequisites..."
+          }
+        ]
+      }
+    ]
+  }
+}
