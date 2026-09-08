@@ -15,9 +15,9 @@ add_cli_check() {
 }
 
 add_dir_check() {
-  local label="$1" dir="$2" init_cmd="$3"
-  if [ -d "$repo_root/$dir" ]; then
-    results+=("✓ ${label} initialized (${dir}/)")
+  local label="$1" path="$2" init_cmd="$3"
+  if [ -e "$repo_root/$path" ]; then
+    results+=("✓ ${label} initialized (${path})")
   else
     results+=("○ ${label} not initialized here — run \`${init_cmd}\` to set up")
   fi
@@ -26,9 +26,9 @@ add_dir_check() {
 add_cli_check "OpenSpec" openspec
 add_cli_check "Beads" bd
 add_cli_check "Graphify" graphify
-add_dir_check "OpenSpec" openspec "openspec init"
-add_dir_check "Beads" .beads "bd init"
-add_dir_check "Graphify" graphify-out "graphify install && graphify claude install --project --strict && graphify hook install"
+add_dir_check "OpenSpec" "openspec/" "openspec init"
+add_dir_check "Beads" ".beads/" "bd init"
+add_dir_check "Graphify" "graphify-out/graph.json" "graphify install && graphify claude install --project --strict && graphify hook install"
 
 message=$(printf '%s\n' "${results[@]}")
 

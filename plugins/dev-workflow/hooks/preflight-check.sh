@@ -32,12 +32,14 @@ check_token() {
     echo "✗ curl not found — cannot verify ${var_name}"
     return
   fi
+  local token_fingerprint
+  token_fingerprint=$(printf '%s' "$token" | cksum | awk '{print $1}')
   local cache_path="$CACHE_DIR/preflight-cache-token_${var_name}.txt"
   local now; now=$(date +%s)
   if [ -f "$cache_path" ]; then
-    local ts cached_line
-    IFS=$'\t' read -r ts cached_line < "$cache_path"
-    if [ -n "$ts" ] && [ $(( now - ts )) -le "$CACHE_TTL_SECONDS" ]; then
+    local ts cached_fingerprint cached_line
+    IFS=$'\t' read -r ts cached_fingerprint cached_line < "$cache_path"
+    if [[ "$ts" =~ ^[0-9]+$ ]] && [ $(( now - ts )) -le "$CACHE_TTL_SECONDS" ] && [ "$cached_fingerprint" = "$token_fingerprint" ]; then
       echo "$cached_line"
       return
     fi
@@ -53,7 +55,7 @@ check_token() {
     *) line="✗ ${var_name} rejected by ${label} (HTTP ${code}) — token missing, expired, or revoked" ;;
   esac
   mkdir -p "$CACHE_DIR"
-  printf '%s\t%s\n' "$now" "$line" > "$cache_path"
+  printf '%s\t%s\t%s\n' "$now" "$token_fingerprint" "$line" > "$cache_path"
   echo "$line"
 }
 
@@ -87,7 +89,7 @@ check_mcp_servers() {
   while IFS= read -r line; do
     if [ -n "$line" ]; then
       local server_name="${line%%: *}"
-      results+=("✓ MCP server configured: ${server_name} (live connectivity checked by /preflight skill)")
+      results+=("✓ MCP server configured: ${server_name} (configuration only — run /dev-workflow:preflight for a live connectivity check)")
     fi
   done <<< "$list"
 }

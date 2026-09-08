@@ -23,6 +23,7 @@ rm -rf "$tmp_empty"
 # Case 2: everything initialized
 tmp_full=$(mktemp -d)
 mkdir -p "$tmp_full/openspec" "$tmp_full/.beads" "$tmp_full/graphify-out"
+touch "$tmp_full/graphify-out/graph.json"
 output_full=$(cd "$tmp_full" && "$HOOK")
 message_full=$(echo "$output_full" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_full" | grep -q "OpenSpec initialized" || fail "full case: expected OpenSpec initialized line"
@@ -34,6 +35,7 @@ rm -rf "$tmp_full"
 tmp_repo=$(mktemp -d)
 (cd "$tmp_repo" && git init -q)
 mkdir -p "$tmp_repo/openspec" "$tmp_repo/.beads" "$tmp_repo/graphify-out" "$tmp_repo/src/deep"
+touch "$tmp_repo/graphify-out/graph.json"
 output_subdir=$(cd "$tmp_repo/src/deep" && "$HOOK")
 message_subdir=$(echo "$output_subdir" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_subdir" | grep -q "OpenSpec initialized" || fail "subdir case: expected OpenSpec initialized line"
@@ -43,5 +45,13 @@ echo "$message_subdir" | grep -q "OpenSpec not initialized" && fail "subdir case
 echo "$message_subdir" | grep -q "Beads not initialized" && fail "subdir case: Beads wrongly reported not initialized"
 echo "$message_subdir" | grep -q "Graphify not initialized" && fail "subdir case: Graphify wrongly reported not initialized"
 rm -rf "$tmp_repo"
+
+# Case 4: graphify-out/ directory exists but graph.json hasn't been generated yet
+tmp_no_graph=$(mktemp -d)
+mkdir -p "$tmp_no_graph/openspec" "$tmp_no_graph/.beads" "$tmp_no_graph/graphify-out"
+output_no_graph=$(cd "$tmp_no_graph" && "$HOOK")
+message_no_graph=$(echo "$output_no_graph" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_no_graph" | grep -q "Graphify not initialized" || fail "no-graph case: expected Graphify not-initialized line when graphify-out/ exists but graph.json doesn't"
+rm -rf "$tmp_no_graph"
 
 echo "All phase0-check tests passed"

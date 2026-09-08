@@ -7,7 +7,7 @@ HOOK="$SCRIPT_DIR/../plugins/dev-workflow/hooks/preflight-check.sh"
 fail() { echo "FAIL: $1"; exit 1; }
 
 fixtures=$(mktemp -d)
-trap 'rm -rf "$fixtures"' EXIT
+trap 'rm -rf "$fixtures" "${cache_dir_broken:-}" "${cache_dir_healthy:-}" "${cache_dir:-}" "${mcp_cache_dir:-}" "${cache_dir_fingerprint:-}" "${cache_dir_corrupt:-}"' EXIT
 
 make_fixture() {
   local name="$1" body="$2"
@@ -25,7 +25,8 @@ curl_401=$(make_fixture "curl-401" 'echo "401"')
 curl_200=$(make_fixture "curl-200" 'echo "200"')
 
 # Case 1: everything broken
-output_broken=$(PREFLIGHT_CACHE_DIR="$(mktemp -d)" PREFLIGHT_GH_CMD="$gh_fail" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_401" \
+cache_dir_broken=$(mktemp -d)
+output_broken=$(PREFLIGHT_CACHE_DIR="$cache_dir_broken" PREFLIGHT_GH_CMD="$gh_fail" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_401" \
   GITHUB_PERSONAL_ACCESS_TOKEN="expired-token" GITLAB_TOKEN="" "$HOOK")
 echo "$output_broken" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null || fail "broken case: hookEventName missing or wrong"
 message_broken=$(echo "$output_broken" | jq -r '.hookSpecificOutput.additionalContext')
@@ -35,7 +36,8 @@ echo "$message_broken" | grep -q "GITLAB_TOKEN not set" || fail "broken case: ex
 echo "$message_broken" | grep -q "No MCP servers configured" || fail "broken case: expected no-MCP-servers line"
 
 # Case 2: everything healthy
-output_healthy=$(PREFLIGHT_CACHE_DIR="$(mktemp -d)" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_servers" PREFLIGHT_CURL_CMD="$curl_200" \
+cache_dir_healthy=$(mktemp -d)
+output_healthy=$(PREFLIGHT_CACHE_DIR="$cache_dir_healthy" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_servers" PREFLIGHT_CURL_CMD="$curl_200" \
   GITHUB_PERSONAL_ACCESS_TOKEN="good-token" GITLAB_TOKEN="good-token" "$HOOK")
 message_healthy=$(echo "$output_healthy" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_healthy" | grep -q "GitHub CLI authenticated" || fail "healthy case: expected gh authenticated line"
@@ -68,5 +70,29 @@ output_mcp_cached=$(PREFLIGHT_CACHE_DIR="$mcp_cache_dir" PREFLIGHT_GH_CMD="$gh_o
 message_mcp_cached=$(echo "$output_mcp_cached" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_mcp_cached" | grep -q "MCP server configured: github" || fail "mcp cache case: expected cached github MCP server line to be reused instead of re-querying claude mcp list"
 echo "$message_mcp_cached" | grep -q "MCP server configured: notion" && fail "mcp cache case: MCP list was re-queried instead of using the cache"
+
+# Case 5: a token's cache entry is invalidated when the token value itself changes
+# (cache is keyed by var name + TTL only — must not serve a stale verdict for a
+# rotated token still inside the TTL window)
+cache_dir_fingerprint=$(mktemp -d)
+curl_after_rotation=$(make_fixture "curl-after-rotation" 'echo "401"')
+
+PREFLIGHT_CACHE_DIR="$cache_dir_fingerprint" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_200" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="old-token" GITLAB_TOKEN="" "$HOOK" > /dev/null
+
+output_rotated=$(PREFLIGHT_CACHE_DIR="$cache_dir_fingerprint" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_after_rotation" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="new-token" GITLAB_TOKEN="" "$HOOK")
+message_rotated=$(echo "$output_rotated" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_rotated" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN rejected" || fail "rotated-token case: expected the new token to be freshly re-verified (rejected) instead of reusing the old token's cached valid result"
+
+# Case 6: a corrupted cache file (non-numeric timestamp) must not crash the hook
+cache_dir_corrupt=$(mktemp -d)
+printf 'not-a-number\tsome-fingerprint\tsome cached line\n' > "$cache_dir_corrupt/preflight-cache-token_GITHUB_PERSONAL_ACCESS_TOKEN.txt"
+
+output_corrupt=$(PREFLIGHT_CACHE_DIR="$cache_dir_corrupt" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_200" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="good-token" GITLAB_TOKEN="" "$HOOK") || fail "corrupt-cache case: hook exited non-zero instead of degrading gracefully"
+echo "$output_corrupt" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null || fail "corrupt-cache case: hook produced no valid JSON output"
+message_corrupt=$(echo "$output_corrupt" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_corrupt" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN valid" || fail "corrupt-cache case: expected a fresh (non-crashed) verification result despite the corrupted cache file"
 
 echo "All preflight-check tests passed"
