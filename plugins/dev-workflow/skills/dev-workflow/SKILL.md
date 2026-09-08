@@ -1,6 +1,6 @@
 ---
 name: dev-workflow
-description: Use when starting a new feature, fix, or scoped change in a repo that uses OpenSpec for change proposals and beads (bd) for issue tracking. Runs a phase-0 prerequisite check, then walks refresh/explore -> propose -> track -> implement -> verify -> archive.
+description: This skill should be used when planning and shipping a scoped change in a repo with OpenSpec for proposals and beads for tracking. Walks the 6-phase dev-workflow cycle (refresh/explore → propose → track → implement → verify → archive); lighter single-task variants and optional graphify integration are also supported.
 ---
 
 # Dev Workflow: OpenSpec + Beads + Graphify
@@ -20,7 +20,7 @@ If a required tool is missing, stop and tell the user what to install before pro
 
 If the phase-0 or preflight hook reports show anything red (✗) — a missing MCP server credential, an expired token, `gh` not authenticated — run `/preflight` to diagnose and (with your confirmation) repair it before continuing. Don't work around a red preflight item manually; let it fix the root cause once.
 
-Add churny, cache-busting artefacts to this repo's ignore file if not already present — `graph.json`, `graphify-out/`, `.beads/embeddeddolt/` — since every write to them invalidates Claude Code's prompt cache.
+Add churny, cache-busting artefacts to `.claudeignore` if not already present — `graph.json`, `graphify-out/`, `.beads/embeddeddolt/` — since every write to them invalidates Claude Code's prompt cache. (Note: `graphify-out/` should still be committed to git as a shared baseline for teammates and across sessions, despite being in `.claudeignore`.)
 
 ## Phase 1: Refresh & Explore (graphify + OpenSpec)
 
@@ -66,12 +66,13 @@ For each task, in dependency order:
 2. Confirm every beads task under the epic is closed: `bd show <epic-id>`.
 3. Run the full test suite once more at the change boundary, not just per-task.
 
+If any of these fail, stop and return to Phase 4 — do not proceed to Phase 6 with an unresolved failure.
+
 ## Phase 6: Archive & Sync
 
-1. Sync the delta spec into the main spec tree: merge `specs/<capability>/spec.md`'s `## ADDED Requirements` into `openspec/specs/<capability>/spec.md` as `## Requirements` (create the file if the capability is new).
-2. Archive: `mv openspec/changes/<change-name> openspec/changes/archive/<YYYY-MM-DD>-<change-name>/`
-3. Close the epic: `bd close <epic-id> --reason="<summary>"`.
-4. If graphify is set up: `graphify update .` (AST-only, no API cost) to keep the knowledge graph current.
+1. Archive and sync the delta spec: `openspec archive <change-name> --yes` — this merges `## ADDED Requirements` into the main spec tree and archives the change atomically.
+2. Close the epic: `bd close <epic-id> --reason="<summary>"`.
+3. If graphify is set up: `graphify update .` (AST-only, no API cost) to keep the knowledge graph current.
 
 ## Notes
 
@@ -80,4 +81,4 @@ For each task, in dependency order:
 - This skill assumes one cohesive change per cycle. If a request spans multiple independent subsystems, split into multiple OpenSpec changes and multiple beads epics up front rather than one giant one.
 - **Lighter variant:** for changes that don't warrant full spec ceremony, skip Phases 2, 3, 5, and 6 entirely — use Phase 1's graph refresh for comprehension and a single beads task for the work. Reserve the full flow for changes substantial enough to need an agreed spec.
 - **Multi-agent variant (not covered by this skill):** partitioning beads tasks across parallel agents by graph community, and syncing a shared backlog via `bd dolt push`/`bd dolt pull`, is deliberately out of scope for this version — see the plan's Future Work section.
-- **Insights loop:** if `/preflight` reports the same failure three runs running, it already suggests filing a beads issue (see its own Notes). If `/insights` surfaces a recurring friction pattern on its own — not just credential/MCP issues — treat that the same way: file it as `bd create --type=chore --label=infra` rather than letting it repeat. Infra friction is backlog work like anything else.
+- **Insights loop:** if `/preflight` reports the same failure three runs running, it already suggests filing a beads issue (see its own Notes). If `/insights` (a separate tool, if installed — not part of this plugin) surfaces a recurring friction pattern on its own — not just credential/MCP issues — treat that the same way: file it as `bd create --type=chore --label=infra` rather than letting it repeat. Infra friction is backlog work like anything else.
