@@ -1,6 +1,6 @@
 ---
 name: preflight
-description: Use when a session hits an auth error, an MCP tool fails to connect, or the user asks to check or fix credentials, tokens, or MCP server health. Diagnoses the preflight hook's report, tests live MCP connectivity, and proposes repairs — never writes to the shell profile or a secret store without explicit per-item confirmation.
+description: This skill should be used when a session hits an auth error, an MCP tool fails to connect, or the user asks to check or fix credentials, tokens, or MCP server health. Diagnoses the preflight hook's report, tests live MCP connectivity, and proposes repairs — never writes to the shell profile or a secret store without explicit per-item confirmation.
 ---
 
 # Preflight: Credential & MCP Health Check
@@ -9,11 +9,11 @@ Turns the read-only `preflight-check.sh` hook report into live diagnosis and con
 
 ## Step 1: Read the existing report
 
-Look at this session's `SessionStart` hook output for `preflight-check.sh`. If it's not visible (e.g. the user invoked `/preflight` mid-session), re-run the checks it describes manually: `gh auth status`, whether `GITHUB_PERSONAL_ACCESS_TOKEN`/`GITLAB_TOKEN` are set, `claude mcp list`.
+Look at this session's `SessionStart` hook output for `preflight-check.sh`. If it's not visible (e.g. the user invoked `/preflight` mid-session), re-run the hook script directly: `${CLAUDE_PLUGIN_ROOT}/hooks/preflight-check.sh`. This reproduces the exact report with token-validity checks (✗/○ distinction) that manual checks alone cannot provide.
 
 ## Step 2: Test live MCP connectivity
 
-The hook can only confirm a server is *configured* — it can't make an actual protocol call. For each server the report lists as configured, make one trivial, read-only tool call from that server (a list/get/read operation, never a write) and note whether it succeeds, times out, or errors with an auth failure. Report each as ✓/✗ alongside the hook's static list.
+The hook can only confirm a server is *configured* — it can't make an actual protocol call. For each server the report lists as configured, make one trivial, read-only tool call from that server (a list/get/read operation, never a write) and note whether it succeeds, times out, or errors with an auth failure. Report each as ✓/✗/○ alongside the hook's static list.
 
 ## Step 3: Diagnose and propose repairs — never apply silently
 
@@ -21,11 +21,13 @@ For each ✗ or ○ item, diagnose the likely cause and propose exactly one fix 
 
 - **`gh` not installed:** tell the user the install command for their platform (e.g. `brew install gh` on macOS); cannot be auto-repaired.
 - **`gh auth status` fails:** tell the user to run `gh auth login` themselves — this is an interactive device/browser flow that must not be scripted.
-- **`GITHUB_PERSONAL_ACCESS_TOKEN` unset but `gh auth status` succeeds:** the token can be derived without asking the user to paste anything — propose running `gh auth token` and exporting its output. Show the exact line before writing it.
+- **`GITHUB_PERSONAL_ACCESS_TOKEN` unset but `gh auth status` succeeds:** the token can be derived without asking the user to paste anything — propose running `gh auth token` and exporting its output. Show the exact command-substitution form (e.g. `export GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)"`) before writing it, never a resolved plaintext token value.
 - **`GITHUB_PERSONAL_ACCESS_TOKEN` rejected (expired/invalid) and `gh auth status` also fails:** cannot be derived — ask the user to generate a new token (github.com/settings/tokens) and paste it, then propose the export line.
 - **`GITLAB_TOKEN` rejected or unset and needed:** same pattern — there's no CLI-derivable fallback for GitLab here, so ask the user directly.
-- **Before asking the user to paste any secret, on macOS only:** try `security find-generic-password -s "<likely-service-name>" -w` for well-known service names first; only ask the user if that comes up empty. Skip this step entirely on non-macOS — don't assume Keychain exists.
-- **Writing an export line:** detect the user's shell (`$SHELL`) to pick `~/.zshrc` vs `~/.bashrc`/`~/.bash_profile`. `grep` for an existing `export <VAR>=` line first — replace it in place (with confirmation) if found, append only if it's genuinely new. Never duplicate an export line for the same variable.
+- **Before asking the user to paste any secret, on macOS only:** try `security find-generic-password -s "<likely-service-name>" -w` for well-known service names first; only ask the user if that comes up empty. The captured value is used directly in the export line, never echoed or shown to the user. Skip this step entirely on non-macOS — don't assume Keychain exists.
+- **Writing an export line:** detect the user's shell (`$SHELL`) to pick `~/.zshrc` vs `~/.bashrc`/`~/.bash_profile`. `grep` for an existing `export <VAR>=` line first — replace it in place (with confirmation) if found, append only if it's genuinely new. When showing a line being replaced, show only the variable name being replaced, never its old value. Never duplicate an export line for the same variable.
+- **`curl` or `claude` CLI not found:** tell the user the install command for their platform (matching the pattern for `gh` above); these are prerequisites the hook can't verify, so if either is missing, the hook's checks are incomplete. Cannot be auto-repaired.
+- **No MCP servers configured (○):** check with the user first — if they intentionally don't use MCP integrations, there's nothing to fix. Only suggest adding a server if the user indicates they need one.
 - **Misconfigured or unreachable MCP server:** point to `claude mcp list` / `claude mcp add` / `claude mcp remove` — the exact fix depends on that server's own setup; don't guess at a generic repair.
 
 ## Step 4: Re-check and report
@@ -34,7 +36,7 @@ After any repairs, re-run the affected checks and print a single compact table, 
 
 ## Step 5: Track recurring friction (insights loop)
 
-After reporting, update `~/.claude/dev-workflow/preflight-state.json` — a flat map of check name to fail count, e.g. `{"gh_auth": {"failCount": 2}, "github_token": {"failCount": 0}}`. For every check that came back ✗ this run, increment its `failCount`; for every check that came back ✓, reset it to 0. If any check's `failCount` reaches 3 — three separate `/preflight` runs where it didn't stay fixed — tell the user this is worth surfacing: suggest running `/insights`, and if it confirms a recurring pattern, file it with `bd create --type=chore --title="Recurring preflight failure: <check>" --label=infra` so it becomes a tracked backlog item instead of repeat friction.
+After reporting, update `~/.claude/dev-workflow/preflight-state.json` — a flat map of check name to fail count, e.g. `{"gh_auth": {"failCount": 2}, "github_token": {"failCount": 0}}`. For every check that came back ✗ this run, increment its `failCount`; for every check that came back ✓, reset it to 0. If any check's `failCount` reaches 3 — three separate `/preflight` runs where it didn't stay fixed — tell the user this is worth surfacing: suggest running `/insights` (a separate tool, if installed — not part of this plugin), and if it confirms a recurring pattern, file it with `bd create --type=chore --title="Recurring preflight failure: <check>" --label=infra` so it becomes a tracked backlog item instead of repeat friction.
 
 ## Notes
 
