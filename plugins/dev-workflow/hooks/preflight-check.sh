@@ -62,8 +62,24 @@ check_mcp_servers() {
     results+=("✗ claude CLI not found — cannot enumerate MCP servers")
     return
   fi
-  local list
-  list=$("$CLAUDE_CMD" mcp list 2>/dev/null || true)
+  # `claude mcp list` health-checks every configured server over the network
+  # (~6s observed) — cache the result like check_token does for tokens.
+  local cache_path="$CACHE_DIR/preflight-cache-mcplist.txt"
+  local now; now=$(date +%s)
+  local list=""
+  local cache_hit=0
+  if [ -f "$cache_path" ]; then
+    local ts; ts=$(head -n 1 "$cache_path")
+    if [[ "$ts" =~ ^[0-9]+$ ]] && [ $(( now - ts )) -le "$CACHE_TTL_SECONDS" ]; then
+      list=$(tail -n +2 "$cache_path")
+      cache_hit=1
+    fi
+  fi
+  if [ "$cache_hit" -eq 0 ]; then
+    list=$("$CLAUDE_CMD" mcp list 2>/dev/null || true)
+    mkdir -p "$CACHE_DIR"
+    { printf '%s\n' "$now"; printf '%s\n' "$list"; } > "$cache_path"
+  fi
   if [ -z "$list" ]; then
     results+=("○ No MCP servers configured")
     return

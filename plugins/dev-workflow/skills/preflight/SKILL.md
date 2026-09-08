@@ -9,7 +9,7 @@ Turns the read-only `preflight-check.sh` hook report into live diagnosis and con
 
 ## Step 1: Read the existing report
 
-Look at this session's `SessionStart` hook output for `preflight-check.sh`. If it's not visible (e.g. the user invoked `/preflight` mid-session), re-run the hook script directly: `${CLAUDE_PLUGIN_ROOT}/hooks/preflight-check.sh`. This reproduces the exact report with token-validity checks (✗/○ distinction) that manual checks alone cannot provide.
+Look at this session's `SessionStart` hook output for `preflight-check.sh`. If it's not visible (e.g. the user invoked `/dev-workflow:preflight` mid-session), re-run the hook script directly to reproduce the exact report with token-validity checks (✗/○ distinction) that manual checks alone cannot provide. `${CLAUDE_PLUGIN_ROOT}` is only substituted inside `hooks.json` command strings — it is not set in your shell environment when you run commands yourself while following a skill. So: if `${CLAUDE_PLUGIN_ROOT}` happens to be set, use `${CLAUDE_PLUGIN_ROOT}/hooks/preflight-check.sh`; otherwise locate the installed script by searching the plugin cache, e.g. `find ~/.claude/plugins/cache -path '*/dev-workflow/*/hooks/preflight-check.sh' 2>/dev/null | sort -V | tail -1` (this picks the highest-versioned match if more than one is cached), and run whichever path that returns.
 
 ## Step 2: Test live MCP connectivity
 
@@ -36,7 +36,7 @@ After any repairs, re-run the affected checks and print a single compact table, 
 
 ## Step 5: Track recurring friction (insights loop)
 
-After reporting, update `~/.claude/dev-workflow/preflight-state.json` — a flat map of check name to fail count, e.g. `{"gh_auth": {"failCount": 2}, "github_token": {"failCount": 0}}`. For every check that came back ✗ this run, increment its `failCount`; for every check that came back ✓, reset it to 0. If any check's `failCount` reaches 3 — three separate `/preflight` runs where it didn't stay fixed — tell the user this is worth surfacing: suggest running `/insights` (a separate tool, if installed — not part of this plugin), and if it confirms a recurring pattern, file it with `bd create --type=chore --title="Recurring preflight failure: <check>" --label=infra` so it becomes a tracked backlog item instead of repeat friction.
+After reporting, update `~/.claude/dev-workflow/preflight-state.json` — a flat map of check name to fail count, e.g. `{"gh_auth": {"failCount": 2}, "github_token": {"failCount": 0}}`. For every check that came back ✗ this run, increment its `failCount`; for every check that came back ✓, reset it to 0. If any check's `failCount` reaches 3 — three separate `/dev-workflow:preflight` runs where it didn't stay fixed — tell the user this is worth surfacing: suggest running `/insights` (a separate tool, if installed — not part of this plugin), and if it confirms a recurring pattern, file it with `bd create --type=chore --title="Recurring preflight failure: <check>" --label=infra` so it becomes a tracked backlog item instead of repeat friction.
 
 ## Notes
 

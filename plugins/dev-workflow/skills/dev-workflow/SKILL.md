@@ -18,7 +18,7 @@ This plugin's `SessionStart` hook already printed a prerequisite report. Before 
 
 If a required tool is missing, stop and tell the user what to install before proceeding. Do not fake the workflow without it.
 
-If the phase-0 or preflight hook reports show anything red (✗) — a missing MCP server credential, an expired token, `gh` not authenticated — run `/preflight` to diagnose and (with your confirmation) repair it before continuing. Don't work around a red preflight item manually; let it fix the root cause once.
+If the preflight hook reports show anything red (✗) — a missing MCP server credential, an expired token, `gh` not authenticated — run `/dev-workflow:preflight` to diagnose and (with your confirmation) repair it before continuing. Don't work around a red preflight item manually; let it fix the root cause once.
 
 Add churny, cache-busting artefacts to `.claudeignore` if not already present — `graph.json`, `graphify-out/`, `.beads/embeddeddolt/` — since every write to them invalidates Claude Code's prompt cache. (Note: `graphify-out/` should still be committed to git as a shared baseline for teammates and across sessions, despite being in `.claudeignore`.)
 
@@ -81,4 +81,4 @@ If any of these fail, stop and return to Phase 4 — do not proceed to Phase 6 w
 - This skill assumes one cohesive change per cycle. If a request spans multiple independent subsystems, split into multiple OpenSpec changes and multiple beads epics up front rather than one giant one.
 - **Lighter variant:** for changes that don't warrant full spec ceremony, skip Phases 2, 3, 5, and 6 entirely — use Phase 1's graph refresh for comprehension and a single beads task for the work. Reserve the full flow for changes substantial enough to need an agreed spec.
 - **Multi-agent variant (not covered by this skill):** partitioning beads tasks across parallel agents by graph community, and syncing a shared backlog via `bd dolt push`/`bd dolt pull`, is deliberately out of scope for this version — see the plan's Future Work section.
-- **Insights loop:** if `/preflight` reports the same failure three runs running, it already suggests filing a beads issue (see its own Notes). If `/insights` (a separate tool, if installed — not part of this plugin) surfaces a recurring friction pattern on its own — not just credential/MCP issues — treat that the same way: file it as `bd create --type=chore --label=infra` rather than letting it repeat. Infra friction is backlog work like anything else.
+- **Insights loop:** if `/dev-workflow:preflight` reports the same failure three runs running, it already suggests filing a beads issue (see its Step 5). If `/insights` (a separate tool, if installed — not part of this plugin) surfaces a recurring friction pattern on its own — not just credential/MCP issues — treat that the same way: file it as `bd create --type=chore --label=infra` rather than letting it repeat. Infra friction is backlog work like anything else.

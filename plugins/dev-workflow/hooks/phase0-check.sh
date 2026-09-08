@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+
 results=()
 
 add_cli_check() {
@@ -14,7 +16,7 @@ add_cli_check() {
 
 add_dir_check() {
   local label="$1" dir="$2" init_cmd="$3"
-  if [ -d "$dir" ]; then
+  if [ -d "$repo_root/$dir" ]; then
     results+=("✓ ${label} initialized (${dir}/)")
   else
     results+=("○ ${label} not initialized here — run \`${init_cmd}\` to set up")

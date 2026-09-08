@@ -27,6 +27,7 @@ curl_200=$(make_fixture "curl-200" 'echo "200"')
 # Case 1: everything broken
 output_broken=$(PREFLIGHT_CACHE_DIR="$(mktemp -d)" PREFLIGHT_GH_CMD="$gh_fail" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_401" \
   GITHUB_PERSONAL_ACCESS_TOKEN="expired-token" GITLAB_TOKEN="" "$HOOK")
+echo "$output_broken" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null || fail "broken case: hookEventName missing or wrong"
 message_broken=$(echo "$output_broken" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_broken" | grep -q "GitHub CLI not authenticated" || fail "broken case: expected gh not-authenticated line"
 echo "$message_broken" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN rejected" || fail "broken case: expected rejected GitHub token line"
@@ -54,5 +55,18 @@ output_cached=$(PREFLIGHT_CACHE_DIR="$cache_dir" PREFLIGHT_GH_CMD="$gh_ok" PREFL
   GITHUB_PERSONAL_ACCESS_TOKEN="good-token" GITLAB_TOKEN="" "$HOOK")
 message_cached=$(echo "$output_cached" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_cached" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN valid" || fail "cache case: expected cached valid result to be reused instead of re-querying curl"
+
+# Case 4: MCP server list is cached and not re-queried within the TTL
+mcp_cache_dir=$(mktemp -d)
+claude_servers_second=$(make_fixture "claude-servers-second" 'printf "notion\n"')
+
+PREFLIGHT_CACHE_DIR="$mcp_cache_dir" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_servers" PREFLIGHT_CURL_CMD="$curl_200" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="" GITLAB_TOKEN="" "$HOOK" > /dev/null
+
+output_mcp_cached=$(PREFLIGHT_CACHE_DIR="$mcp_cache_dir" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_servers_second" PREFLIGHT_CURL_CMD="$curl_200" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="" GITLAB_TOKEN="" "$HOOK")
+message_mcp_cached=$(echo "$output_mcp_cached" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_mcp_cached" | grep -q "MCP server configured: github" || fail "mcp cache case: expected cached github MCP server line to be reused instead of re-querying claude mcp list"
+echo "$message_mcp_cached" | grep -q "MCP server configured: notion" && fail "mcp cache case: MCP list was re-queried instead of using the cache"
 
 echo "All preflight-check tests passed"

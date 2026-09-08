@@ -10,7 +10,7 @@ A Claude Code plugin bundling two skills and two `SessionStart` hooks:
 
 ## What it does
 
-On session start, the bundled hooks check (1) whether `openspec`, `bd`, and `graphify` are installed and initialized in the current repo, and (2) whether `gh` is authenticated, `GITHUB_PERSONAL_ACCESS_TOKEN`/`GITLAB_TOKEN` are set and valid, and which MCP servers are configured — reporting what's missing or broken in both cases. Invoke `dev-workflow` (or let it auto-trigger) to run the full cycle for a scoped change; invoke `preflight` any time a session hits an auth or MCP connectivity error.
+On session start, the bundled hooks check (1) whether `openspec`, `bd`, and `graphify` are installed and initialized in the current repo, and (2) whether `gh` is authenticated, `GITHUB_PERSONAL_ACCESS_TOKEN`/`GITLAB_TOKEN` are set and valid, and which MCP servers are configured — reporting what's missing or broken in both cases. Invoke `/dev-workflow:dev-workflow` (or let it auto-trigger) to run the full cycle for a scoped change; invoke `/dev-workflow:preflight` any time a session hits an auth or MCP connectivity error. Skills in this plugin are invoked with the `dev-workflow:` prefix, since Claude Code namespaces skills by plugin name. `preflight-check.sh` makes outbound network requests on every session start — to configured MCP servers (via `claude mcp list`) and to `api.github.com`/`gitlab.com` (to validate tokens) — and caches their results locally under `~/.claude/dev-workflow/` to keep subsequent session starts fast.
 
 ## Prerequisites
 
