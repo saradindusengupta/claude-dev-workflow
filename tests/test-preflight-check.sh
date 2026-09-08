@@ -7,7 +7,7 @@ HOOK="$SCRIPT_DIR/../plugins/dev-workflow/hooks/preflight-check.sh"
 fail() { echo "FAIL: $1"; exit 1; }
 
 fixtures=$(mktemp -d)
-trap 'rm -rf "$fixtures" "${cache_dir_broken:-}" "${cache_dir_healthy:-}" "${cache_dir:-}" "${mcp_cache_dir:-}" "${cache_dir_fingerprint:-}" "${cache_dir_corrupt:-}"' EXIT
+trap 'rm -rf "$fixtures" "${cache_dir_broken:-}" "${cache_dir_healthy:-}" "${cache_dir:-}" "${mcp_cache_dir:-}" "${cache_dir_fingerprint:-}" "${cache_dir_corrupt:-}" "${cache_dir_403:-}"' EXIT
 
 make_fixture() {
   local name="$1" body="$2"
@@ -22,6 +22,7 @@ gh_ok=$(make_fixture "gh-ok" 'exit 0')
 claude_empty=$(make_fixture "claude-empty" 'echo ""')
 claude_servers=$(make_fixture "claude-servers" 'printf "github\nlinear\n"')
 curl_401=$(make_fixture "curl-401" 'echo "401"')
+curl_403=$(make_fixture "curl-403" 'echo "403"')
 curl_200=$(make_fixture "curl-200" 'echo "200"')
 
 # Case 1: everything broken
@@ -94,5 +95,16 @@ output_corrupt=$(PREFLIGHT_CACHE_DIR="$cache_dir_corrupt" PREFLIGHT_GH_CMD="$gh_
 echo "$output_corrupt" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' >/dev/null || fail "corrupt-cache case: hook produced no valid JSON output"
 message_corrupt=$(echo "$output_corrupt" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_corrupt" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN valid" || fail "corrupt-cache case: expected a fresh (non-crashed) verification result despite the corrupted cache file"
+
+# Case 7: HTTP 403 (valid token, insufficient scope / access restricted) must be
+# reported distinctly from 401 (invalid/expired) — a 403 should not tell the
+# user their token is expired or needs regenerating.
+cache_dir_403=$(mktemp -d)
+output_403=$(PREFLIGHT_CACHE_DIR="$cache_dir_403" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_empty" PREFLIGHT_CURL_CMD="$curl_403" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="scope-limited-token" GITLAB_TOKEN="" "$HOOK")
+message_403=$(echo "$output_403" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_403" | grep -q "HTTP 403" || fail "403 case: expected the HTTP 403 status code in the report"
+echo "$message_403" | grep -q "lack required scopes" || fail "403 case: expected a scopes/permissions explanation, not a blanket expired/invalid message"
+echo "$message_403" | grep -q "missing, expired, or revoked" && fail "403 case: must not reuse the 401 (expired/invalid) wording for a 403 response"
 
 echo "All preflight-check tests passed"

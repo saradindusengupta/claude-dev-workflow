@@ -52,7 +52,9 @@ check_token() {
   case "$code" in
     200) line="✓ ${var_name} valid (${label} responded 200)" ;;
     000) line="○ ${var_name} set but ${label} unreachable (offline or timed out) — could not verify" ;;
-    *) line="✗ ${var_name} rejected by ${label} (HTTP ${code}) — token missing, expired, or revoked" ;;
+    401) line="✗ ${var_name} rejected by ${label} (HTTP 401) — token missing, expired, or revoked" ;;
+    403) line="✗ ${var_name} rejected by ${label} (HTTP 403) — token may be valid but lack required scopes, or access is restricted (e.g. org SSO not authorized, IP allowlist) — do not assume it needs regenerating" ;;
+    *) line="✗ ${var_name} rejected by ${label} (HTTP ${code}) — unexpected response, check token status manually" ;;
   esac
   mkdir -p "$CACHE_DIR"
   printf '%s\t%s\t%s\n' "$now" "$token_fingerprint" "$line" > "$cache_path"
