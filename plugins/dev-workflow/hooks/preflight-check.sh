@@ -89,7 +89,7 @@ check_mcp_servers() {
     return
   fi
   while IFS= read -r line; do
-    if [ -n "$line" ]; then
+    if [[ "$line" == *": "* ]]; then
       local server_name="${line%%: *}"
       results+=("✓ MCP server configured: ${server_name} (configuration only — run /dev-workflow:preflight for a live connectivity check)")
     fi
