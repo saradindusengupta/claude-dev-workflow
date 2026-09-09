@@ -7,7 +7,7 @@ HOOK="$SCRIPT_DIR/../plugins/dev-workflow/hooks/preflight-check.sh"
 fail() { echo "FAIL: $1"; exit 1; }
 
 fixtures=$(mktemp -d)
-trap 'rm -rf "$fixtures" "${cache_dir_broken:-}" "${cache_dir_healthy:-}" "${cache_dir:-}" "${mcp_cache_dir:-}" "${cache_dir_fingerprint:-}" "${cache_dir_corrupt:-}" "${cache_dir_403:-}"' EXIT
+trap 'rm -rf "$fixtures" "${cache_dir_broken:-}" "${cache_dir_healthy:-}" "${cache_dir:-}" "${mcp_cache_dir:-}" "${cache_dir_fingerprint:-}" "${cache_dir_corrupt:-}" "${cache_dir_403:-}" "${cache_dir_progress_line:-}"' EXIT
 
 make_fixture() {
   local name="$1" body="$2"
@@ -20,7 +20,7 @@ make_fixture() {
 gh_fail=$(make_fixture "gh-fail" 'exit 1')
 gh_ok=$(make_fixture "gh-ok" 'exit 0')
 claude_empty=$(make_fixture "claude-empty" 'echo ""')
-claude_servers=$(make_fixture "claude-servers" 'printf "github\nlinear\n"')
+claude_servers=$(make_fixture "claude-servers" 'printf "github: stdio - ✔ Connected\nlinear: stdio - ✔ Connected\n"')
 curl_401=$(make_fixture "curl-401" 'echo "401"')
 curl_403=$(make_fixture "curl-403" 'echo "403"')
 curl_200=$(make_fixture "curl-200" 'echo "200"')
@@ -61,7 +61,7 @@ echo "$message_cached" | grep -q "GITHUB_PERSONAL_ACCESS_TOKEN valid" || fail "c
 
 # Case 4: MCP server list is cached and not re-queried within the TTL
 mcp_cache_dir=$(mktemp -d)
-claude_servers_second=$(make_fixture "claude-servers-second" 'printf "notion\n"')
+claude_servers_second=$(make_fixture "claude-servers-second" 'printf "notion: stdio - ✔ Connected\n"')
 
 PREFLIGHT_CACHE_DIR="$mcp_cache_dir" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_servers" PREFLIGHT_CURL_CMD="$curl_200" \
   GITHUB_PERSONAL_ACCESS_TOKEN="" GITLAB_TOKEN="" "$HOOK" > /dev/null
@@ -106,5 +106,18 @@ message_403=$(echo "$output_403" | jq -r '.hookSpecificOutput.additionalContext'
 echo "$message_403" | grep -q "HTTP 403" || fail "403 case: expected the HTTP 403 status code in the report"
 echo "$message_403" | grep -q "lack required scopes" || fail "403 case: expected a scopes/permissions explanation, not a blanket expired/invalid message"
 echo "$message_403" | grep -q "missing, expired, or revoked" && fail "403 case: must not reuse the 401 (expired/invalid) wording for a 403 response"
+
+# Case 8: `claude mcp list` prints a leading progress line ("Checking MCP server
+# health…") with no "name: info" shape before the real entries — it must not be
+# reported as a configured server.
+cache_dir_progress_line=$(mktemp -d)
+claude_servers_with_progress=$(make_fixture "claude-servers-with-progress" \
+  'printf "Checking MCP server health…\n\ngithub: stdio - ✔ Connected\n"')
+
+output_progress_line=$(PREFLIGHT_CACHE_DIR="$cache_dir_progress_line" PREFLIGHT_GH_CMD="$gh_ok" PREFLIGHT_CLAUDE_CMD="$claude_servers_with_progress" PREFLIGHT_CURL_CMD="$curl_200" \
+  GITHUB_PERSONAL_ACCESS_TOKEN="" GITLAB_TOKEN="" "$HOOK")
+message_progress_line=$(echo "$output_progress_line" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_progress_line" | grep -q "MCP server configured: github" || fail "progress-line case: expected github MCP server line"
+echo "$message_progress_line" | grep -q "Checking MCP server health" && fail "progress-line case: the progress line must not be reported as a configured MCP server"
 
 echo "All preflight-check tests passed"
