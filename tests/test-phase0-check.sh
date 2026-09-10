@@ -6,7 +6,7 @@ HOOK="$SCRIPT_DIR/../plugins/dev-workflow/hooks/phase0-check.sh"
 
 fail() { echo "FAIL: $1"; exit 1; }
 
-trap 'rm -rf "${tmp_empty:-}" "${tmp_full:-}" "${tmp_repo:-}" "${tmp_no_graph:-}"' EXIT
+trap 'rm -rf "${tmp_empty:-}" "${tmp_full:-}" "${tmp_repo:-}" "${tmp_no_graph:-}" "${tmp_partial:-}"' EXIT
 
 # Case 1: nothing initialized
 tmp_empty=$(mktemp -d)
@@ -51,5 +51,14 @@ mkdir -p "$tmp_no_graph/openspec" "$tmp_no_graph/.beads" "$tmp_no_graph/graphify
 output_no_graph=$(cd "$tmp_no_graph" && "$HOOK")
 message_no_graph=$(echo "$output_no_graph" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_no_graph" | grep -q "Graphify not initialized" || fail "no-graph case: expected Graphify not-initialized line when graphify-out/ exists but graph.json doesn't"
+
+# Case 5: OpenSpec initialized, Beads and Graphify not
+tmp_partial=$(mktemp -d)
+mkdir -p "$tmp_partial/openspec"
+output_partial=$(cd "$tmp_partial" && "$HOOK")
+message_partial=$(echo "$output_partial" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_partial" | grep -q "OpenSpec initialized" || fail "partial case: expected OpenSpec initialized line"
+echo "$message_partial" | grep -q "Beads not initialized" || fail "partial case: expected Beads not-initialized line"
+echo "$message_partial" | grep -q "Graphify not initialized" || fail "partial case: expected Graphify not-initialized line"
 
 echo "All phase0-check tests passed"

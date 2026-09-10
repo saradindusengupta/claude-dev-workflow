@@ -26,6 +26,8 @@ add_dir_check() {
 add_cli_check "OpenSpec" openspec
 add_cli_check "Beads" bd
 add_cli_check "Graphify" graphify
+add_dir_check "OpenSpec" "openspec" "openspec init"
+add_dir_check "Beads" ".beads" "bd init"
 add_dir_check "Graphify" "graphify-out/graph.json" "graphify install && graphify claude install --project --strict && graphify hook install && graphify update ."
 
 message=$(printf '%s\n' "${results[@]}")
