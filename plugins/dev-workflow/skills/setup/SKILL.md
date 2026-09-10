@@ -29,7 +29,7 @@ For each ✗ (CLI not found) or ○ (not initialized) item, propose exactly one 
     1. `graphify install`
     2. `graphify claude install --project --strict`
     3. `graphify hook install` — call out explicitly that this installs a git hook into the repo before asking for confirmation; this has a different blast radius than the other three steps.
-    4. `graphify update .`
+    4. `/graphify .` — build the initial graph
 
 - **Graphify is optional — check before proposing anything for it.** If the user indicates they don't want the codebase graph (small repo, explicit decline, or it just isn't relevant to what they're doing), that's a valid terminal answer — don't keep re-proposing graphify's CLI install or repo-init chain, and don't count a declined item as a fail-count increment (see Step 4).
 
