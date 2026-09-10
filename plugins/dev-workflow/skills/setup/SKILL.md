@@ -33,7 +33,7 @@ For each ✗ (CLI not found) or ○ (not initialized) item, propose exactly one 
 
 - **Graphify is optional — check before proposing anything for it.** If the user indicates they don't want the codebase graph (small repo, explicit decline, or it just isn't relevant to what they're doing), that's a valid terminal answer — don't keep re-proposing graphify's CLI install or repo-init chain, and don't count a declined item as a fail-count increment (see Step 4).
 
-- After running any command, re-verify that specific check (re-run `phase0-check.sh`, or the equivalent `command -v` / path check) before proposing the next fix. If the re-check still fails, stop — show the exact stdout/stderr from the command you ran, and let the user decide whether to retry, skip, or investigate manually. Do not retry silently and do not move on to the next item as if it succeeded.
+- After running any command, re-verify that specific check (re-run `phase0-check.sh`, or the equivalent `command -v` / path check) before proposing the next fix. For Graphify's first three sub-steps, verify the sub-step's own result and continue to the next confirmed step; check `graphify-out/graph.json` only after `graphify update .`. If a step-specific re-check still fails, stop — show the exact stdout/stderr from the command you ran, and let the user decide whether to retry, skip, or investigate manually. Do not retry silently and do not move on to the next item as if it succeeded.
 
 ## Step 3: Re-check and report
 
