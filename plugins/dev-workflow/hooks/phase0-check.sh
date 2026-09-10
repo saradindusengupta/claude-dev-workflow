@@ -25,7 +25,7 @@ add_dir_check() {
 
 add_file_check() {
   local label="$1" path="$2" init_cmd="$3"
-  if [ -e "$repo_root/$path" ]; then
+  if [ -f "$repo_root/$path" ]; then
     results+=("✓ ${label} initialized (${path})")
   else
     results+=("○ ${label} not initialized here — run \`${init_cmd}\` to set up")
