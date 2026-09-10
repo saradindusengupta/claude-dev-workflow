@@ -16,7 +16,7 @@ This plugin's `SessionStart` hook already printed a prerequisite report. Before 
 - (Optional) `graphify` CLI is installed and `graphify-out/graph.json` exists, for codebase-graph-backed context (run `graphify install && graphify claude install --project --strict && graphify hook install` if not, then build the initial graph with `/graphify .` — safe to skip if the repo is small).
 - (Optional, separate decision) if `claude-mem` is also installed in this repo, treat it as passive background capture only — this workflow's curated-memory channel is `bd remember`/`bd prime` (see Phase 3), not claude-mem. Don't let both compete for the same job.
 
-If a required tool is missing, stop and tell the user what to install before proceeding. Do not fake the workflow without it.
+If a required tool is missing or its repo-level init is missing (✗ or ○), run `/dev-workflow:setup` to diagnose and (with your confirmation) install or initialize it before continuing. Don't hand-install it yourself or fake the workflow without it — let `/dev-workflow:setup` fix the root cause once.
 
 If the preflight hook reports show anything red (✗) — a missing MCP server credential, an expired token, `gh` not authenticated — run `/dev-workflow:preflight` to diagnose and (with your confirmation) repair it before continuing. Don't work around a red preflight item manually; let it fix the root cause once.
 
