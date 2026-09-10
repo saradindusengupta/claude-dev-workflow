@@ -1,6 +1,6 @@
 ---
 name: setup
-description: This skill should be used when a session reports a missing openspec/bd/graphify CLI or an uninitialized openspec/.beads/graphify-out directory, or the user asks to install, initialize, or fix dev-workflow's prerequisite tooling. Diagnoses the phase0-check hook's report and proposes installs/inits — never runs a command without explicit per-item confirmation, and never guesses an install command it isn't confident about.
+description: This skill should be used when a session reports a missing openspec/bd/graphify CLI, an uninitialized openspec/.beads directory, or a missing graphify-out/graph.json, or the user asks to install, initialize, or fix dev-workflow's prerequisite tooling. Diagnoses the phase0-check hook's report and proposes installs/inits — never runs a command without explicit per-item confirmation, and never guesses an install command it isn't confident about.
 ---
 
 # Setup: Prerequisite Install & Fix
@@ -25,22 +25,21 @@ For each ✗ (CLI not found) or ○ (not initialized) item, propose exactly one 
 - **Directory not initialized (`openspec/`, `.beads/`, `graphify-out/graph.json`):**
   - Only propose this once the corresponding CLI check is already ✓ — don't propose `openspec init` while `openspec` itself is still missing.
   - Run the hook-embedded init command verbatim: `openspec init`, `bd init`, or for graphify, ask before each sub-step separately rather than the full chain at once (see below). Always run from the repo root (`git rev-parse --show-toplevel`), never the current subdirectory, matching how `phase0-check.sh` itself resolves the repo root.
-
-- **Graphify's repo-init chain is four sub-steps, each its own confirmation — never bundle them:**
-  1. `graphify install`
-  2. `graphify claude install --project --strict`
-  3. `graphify hook install` — call out explicitly that this installs a git hook into the repo before asking for confirmation; this has a different blast radius than the other three steps.
-  4. `graphify update .`
+  - **Graphify's repo-init chain is four sub-steps, each its own confirmation — never bundle them:**
+    1. `graphify install`
+    2. `graphify claude install --project --strict`
+    3. `graphify hook install` — call out explicitly that this installs a git hook into the repo before asking for confirmation; this has a different blast radius than the other three steps.
+    4. `graphify update .`
 
 - After running any command, re-verify that specific check (re-run `phase0-check.sh`, or the equivalent `command -v` / path check) before proposing the next fix. If the re-check still fails, stop — show the exact stdout/stderr from the command you ran, and let the user decide whether to retry, skip, or investigate manually. Do not retry silently and do not move on to the next item as if it succeeded.
 
 ## Step 3: Re-check and report
 
-After all items are processed (or the user stops partway through), re-run `phase0-check.sh` once more and print a single compact table, one row per check, ✓/✗/○ plus a one-line reason.
+After all items are processed (or the user stops partway through), re-run `phase0-check.sh` once more and print a single compact table, one row per check, ✓/✗/○ plus a one-line reason. If a just-installed CLI still doesn't resolve via `command -v` — some installers only take effect in a fresh shell (an updated `PATH`, a new shim, a re-sourced profile) — say so explicitly as a possible cause rather than reporting the install as failed outright, and suggest the user open a new shell and re-run `/dev-workflow:setup` to confirm.
 
 ## Step 4: Track recurring friction (insights loop)
 
-After reporting, update `~/.claude/dev-workflow/setup-state.json` — a flat map of check name to fail count, e.g. `{"openspec_cli": {"failCount": 1}, "beads_init": {"failCount": 0}}`. For every check that came back ✗ or ○ this run (after attempting a fix), increment its `failCount`; for every check that came back ✓, reset it to 0. If any check's `failCount` reaches 3 — three separate `/dev-workflow:setup` runs where it didn't stay fixed — tell the user this is worth surfacing: suggest running `/insights` (a separate tool, if installed — not part of this plugin), and if it confirms a recurring pattern, file it with `bd create --type=chore --title="Recurring setup failure: <check>" --label=infra` so it becomes a tracked backlog item instead of repeat friction.
+After reporting, update `~/.claude/dev-workflow/setup-state.json` — a flat map of check name to fail count, e.g. `{"openspec_cli": {"failCount": 1}, "beads_init": {"failCount": 0}}`. For every check that came back ✗ or ○ this run, increment its `failCount`; for every check that came back ✓, reset it to 0. If any check's `failCount` reaches 3 — three separate `/dev-workflow:setup` runs where it didn't stay fixed — tell the user this is worth surfacing: suggest running `/insights` (a separate tool, if installed — not part of this plugin), and if it confirms a recurring pattern, file it with `bd create --type=chore --title="Recurring setup failure: <check>" --label=infra` so it becomes a tracked backlog item instead of repeat friction.
 
 ## Notes
 
