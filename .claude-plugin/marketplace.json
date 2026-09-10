@@ -1,6 +1,6 @@
 {
   "name": "dev-workflow-marketplace",
-  "description": "Marketplace for the dev-workflow plugin: OpenSpec + beads + graphify dev cycle (refresh/explore/propose/track/implement/verify/archive) plus a read-only credential and MCP health preflight.",
+  "description": "Marketplace for the dev-workflow plugin: OpenSpec + beads + graphify dev cycle (refresh/explore/propose/track/implement/verify/archive) plus confirmation-gated prerequisite setup and credential/MCP health preflight.",
   "owner": {
     "name": "Saradindu Sengupta"
   },
@@ -8,7 +8,7 @@
     {
       "name": "dev-workflow",
       "source": "./plugins/dev-workflow",
-      "description": "OpenSpec + beads + graphify dev cycle (refresh/explore/propose/track/implement/verify/archive) plus a read-only credential and MCP health preflight."
+      "description": "OpenSpec + beads + graphify dev cycle (refresh/explore/propose/track/implement/verify/archive) plus confirmation-gated prerequisite setup and credential/MCP health preflight."
     }
   ]
 }

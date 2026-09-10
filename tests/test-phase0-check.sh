@@ -6,7 +6,7 @@ HOOK="$SCRIPT_DIR/../plugins/dev-workflow/hooks/phase0-check.sh"
 
 fail() { echo "FAIL: $1"; exit 1; }
 
-trap 'rm -rf "${tmp_empty:-}" "${tmp_full:-}" "${tmp_repo:-}" "${tmp_no_graph:-}"' EXIT
+trap 'rm -rf "${tmp_empty:-}" "${tmp_full:-}" "${tmp_repo:-}" "${tmp_no_graph:-}" "${tmp_partial:-}" "${tmp_wrong_type:-}"' EXIT
 
 # Case 1: nothing initialized
 tmp_empty=$(mktemp -d)
@@ -51,5 +51,25 @@ mkdir -p "$tmp_no_graph/openspec" "$tmp_no_graph/.beads" "$tmp_no_graph/graphify
 output_no_graph=$(cd "$tmp_no_graph" && "$HOOK")
 message_no_graph=$(echo "$output_no_graph" | jq -r '.hookSpecificOutput.additionalContext')
 echo "$message_no_graph" | grep -q "Graphify not initialized" || fail "no-graph case: expected Graphify not-initialized line when graphify-out/ exists but graph.json doesn't"
+
+# Case 5: OpenSpec initialized, Beads and Graphify not
+tmp_partial=$(mktemp -d)
+mkdir -p "$tmp_partial/openspec"
+output_partial=$(cd "$tmp_partial" && "$HOOK")
+message_partial=$(echo "$output_partial" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_partial" | grep -q "OpenSpec initialized" || fail "partial case: expected OpenSpec initialized line"
+echo "$message_partial" | grep -q "Beads not initialized" || fail "partial case: expected Beads not-initialized line"
+echo "$message_partial" | grep -q "Graphify not initialized" || fail "partial case: expected Graphify not-initialized line"
+
+# Case 6: OpenSpec/Beads paths exist as files, not directories
+tmp_wrong_type=$(mktemp -d)
+touch "$tmp_wrong_type/openspec" "$tmp_wrong_type/.beads"
+mkdir -p "$tmp_wrong_type/graphify-out"
+touch "$tmp_wrong_type/graphify-out/graph.json"
+output_wrong_type=$(cd "$tmp_wrong_type" && "$HOOK")
+message_wrong_type=$(echo "$output_wrong_type" | jq -r '.hookSpecificOutput.additionalContext')
+echo "$message_wrong_type" | grep -q "OpenSpec not initialized" || fail "wrong-type case: expected OpenSpec not-initialized line for file path"
+echo "$message_wrong_type" | grep -q "Beads not initialized" || fail "wrong-type case: expected Beads not-initialized line for file path"
+echo "$message_wrong_type" | grep -q "Graphify initialized" || fail "wrong-type case: expected Graphify initialized line for graph.json file"
 
 echo "All phase0-check tests passed"
