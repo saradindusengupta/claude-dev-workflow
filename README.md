@@ -61,7 +61,7 @@ Skills in this plugin are invoked with the `dev-workflow:` prefix — Claude Cod
 - `jq` — required by both SessionStart hooks to format their output; install via your OS package manager if missing
 - OpenSpec CLI — `openspec init` in a repo that doesn't have it yet
 - [beads](https://github.com/gastownhall/beads) — `bd init`
-- graphify — optional, `graphify install && graphify claude install --project --strict && graphify hook install && graphify update .` (or run `/dev-workflow:setup` to do this with per-step confirmation)
+- graphify — optional, `graphify install && graphify claude install --project --strict && graphify hook install`, then build the initial graph with `/graphify .` (or run `/dev-workflow:setup` to do this with per-step confirmation)
 - `gh` CLI, authenticated (`gh auth login`) — optional, but `preflight` uses it to diagnose and derive GitHub tokens without asking you to paste one
 - `GITHUB_PERSONAL_ACCESS_TOKEN` / `GITLAB_TOKEN` — optional, only checked if set
 
