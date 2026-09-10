@@ -1,6 +1,6 @@
 {
   "name": "dev-workflow",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "OpenSpec + beads + graphify dev cycle (refresh/explore/propose/track/implement/verify/archive) plus confirmation-gated prerequisite setup and credential/MCP health preflight.",
   "author": {
     "name": "Saradindu Sengupta"

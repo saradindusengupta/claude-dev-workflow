@@ -31,6 +31,8 @@ For each ✗ (CLI not found) or ○ (not initialized) item, propose exactly one 
     3. `graphify hook install` — call out explicitly that this installs a git hook into the repo before asking for confirmation; this has a different blast radius than the other three steps.
     4. `graphify update .`
 
+- **Graphify is optional — check before proposing anything for it.** If the user indicates they don't want the codebase graph (small repo, explicit decline, or it just isn't relevant to what they're doing), that's a valid terminal answer — don't keep re-proposing graphify's CLI install or repo-init chain, and don't count a declined item as a fail-count increment (see Step 4).
+
 - After running any command, re-verify that specific check (re-run `phase0-check.sh`, or the equivalent `command -v` / path check) before proposing the next fix. If the re-check still fails, stop — show the exact stdout/stderr from the command you ran, and let the user decide whether to retry, skip, or investigate manually. Do not retry silently and do not move on to the next item as if it succeeded.
 
 ## Step 3: Re-check and report
@@ -39,7 +41,7 @@ After all items are processed (or the user stops partway through), re-run `phase
 
 ## Step 4: Track recurring friction (insights loop)
 
-After reporting, update `~/.claude/dev-workflow/setup-state.json` — a flat map of check name to fail count, e.g. `{"openspec_cli": {"failCount": 1}, "beads_init": {"failCount": 0}}`. For every check that came back ✗ or ○ this run, increment its `failCount`; for every check that came back ✓, reset it to 0. If any check's `failCount` reaches 3 — three separate `/dev-workflow:setup` runs where it didn't stay fixed — tell the user this is worth surfacing: suggest running `/insights` (a separate tool, if installed — not part of this plugin), and if it confirms a recurring pattern, file it with `bd create --type=chore --title="Recurring setup failure: <check>" --label=infra` so it becomes a tracked backlog item instead of repeat friction.
+After reporting, update `~/.claude/dev-workflow/setup-state.json` — a flat map of check name to fail count, e.g. `{"openspec_cli": {"failCount": 1}, "beads_init": {"failCount": 0}}`. For every check that came back ✗ or ○ this run — except an item the user explicitly declined (see Step 2's graphify note) or that Step 2 never reached because the user stopped partway through — increment its `failCount`; for every check that came back ✓, reset it to 0. If any check's `failCount` reaches 3 — three separate `/dev-workflow:setup` runs where it didn't stay fixed — tell the user this is worth surfacing: suggest running `/insights` (a separate tool, if installed — not part of this plugin), and if it confirms a recurring pattern, file it with `bd create --type=chore --title="Recurring setup failure: <check>" --label=infra` so it becomes a tracked backlog item instead of repeat friction.
 
 ## Notes
 
